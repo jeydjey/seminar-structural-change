@@ -2,4 +2,7 @@
 library(magrittr)
 library(seminar.bp.strucchange)
 
-cci <- cci()
+data_cci <- cci()
+
+#load kpi
+kpi <- kpi(data_cci)

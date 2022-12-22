@@ -80,17 +80,17 @@ kpi <- function(cci = cci()) {
 
   # autocorrelation
   # observation values
-  k$acf_value(xts$value, lag.max = 10, plot = F)
-  k$pacf_value(xts$value, lag.max = 10, plot = F)
+  k$acf_value <- acf(xts$value, lag.max = 10, plot = F)
+  k$pacf_value <- pacf(xts$value, lag.max = 10, plot = F)
   # first difference
-  k$acf_diff(xts$diff, lag.max = 10, plot = F)
-  k$pacf_diff(xts$diff, lag.max = 10, plot = F)
+  k$acf_diff  <- acf(xts$diff, lag.max = 10, plot = F)
+  k$pacf_diff <- pacf(xts$diff, lag.max = 10, plot = F)
   # log values
-  k$acf_log(xts$log, lag.max = 10, plot = F)
-  k$pacf_log(xts$log, lag.max = 10, plot = F)
+  k$acf_log <- acf(xts$log, lag.max = 10, plot = F)
+  k$pacf_log <- pacf(xts$log, lag.max = 10, plot = F)
   #first difference log values
-  k$acf_log_diff(xts$log_diff, lag.max = 10, plot = F)
-  k$pacf_log_diff(xts$log_diff, lag.max = 10, plot = F)
+  k$acf_log_diff <- acf(xts$log_diff, lag.max = 10, plot = F)
+  k$pacf_log_diff <- pacf(xts$log_diff, lag.max = 10, plot = F)
 
   return(k)
 
