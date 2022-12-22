@@ -42,7 +42,7 @@ rec_res <- function(formula, start, end, data) {
 #' @importFrom magrittr %>%
 ssr <- function(formula, data, trim = 0.1) {
 
-  ssr_mtx <- matrix(nrow = nrow(cci), ncol = nrow(cci))
+  ssr_mtx <- matrix(nrow = nrow(data), ncol = nrow(data))
 
   min_length <- if(trim<1) floor(trim * nrow(data)) else max(trim, floor(0.05 * nrow(data)))
 
