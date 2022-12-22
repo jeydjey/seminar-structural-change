@@ -54,8 +54,8 @@ kpi <- function(cci = cci()) {
   k$overall_mean <- mean(cci$value)
   k$overall_var <- var(cci$value)
   k$overall_change <- dplyr::last(cci$value) / dplyr::first(cci$value)
-  k$diff_mean <- mean(cci$diff)
-  k$diff_var <- var(cci$diff)
+  k$diff_mean <- mean(cci$diff, na.rm = TRUE)
+  k$diff_var <- var(cci$diff, na.rm = TRUE)
   k$diff_below0 <- length(cci$diff[which(cci$diff<0)])
 
   #Test for stationarity with Augmented Dickey-Fuller Test and Phillips-Perron Unit Root Test
