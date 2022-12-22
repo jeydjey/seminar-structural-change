@@ -60,23 +60,23 @@ kpi <- function(cci = cci()) {
 
   #Test for stationarity with Augmented Dickey-Fuller Test and Phillips-Perron Unit Root Test
   #observation values
-  kpi$adf_value <- tseries::adf.test(cci$value)
-  kpi$pp_value <- tseries::pp.test(cci$value,)
+  k$adf_value <- tseries::adf.test(cci$value)
+  k$pp_value <- tseries::pp.test(cci$value,)
   #first difference
-  kpi$adf_diff <- tseries::adf.test(na.omit(cci$diff))
-  kpi$pp_diff <- tseries::pp.test(na.omit(cci$diff))
+  k$adf_diff <- tseries::adf.test(na.omit(cci$diff))
+  k$pp_diff <- tseries::pp.test(na.omit(cci$diff))
   #log values
-  kpi$adf_log_value <- tseries::adf.test(cci$log_val)
-  kpi$pp_log_value <- tseries::pp.test(cci$log_val)
+  k$adf_log_value <- tseries::adf.test(cci$log_val)
+  k$pp_log_value <- tseries::pp.test(cci$log_val)
   #log first difference
-  kpi$adf_log_diff <- tseries::adf.test(na.omit(cci$log_diff))
-  kpi$pp_log_diff <- tseries::pp.test(na.omit(cci$log_diff))
+  k$adf_log_diff <- tseries::adf.test(na.omit(cci$log_diff))
+  k$pp_log_diff <- tseries::pp.test(na.omit(cci$log_diff))
 
   #kurtosis
-  kpi$kurtosis <- TSA::kurtosis(cci$value)
+  k$kurtosis <- TSA::kurtosis(cci$value)
 
   #Skewness
-  kpi$skewness <- TSA::skewness(cci$value)
+  k$skewness <- TSA::skewness(cci$value)
 
   # autocorrelation
   # observation values
