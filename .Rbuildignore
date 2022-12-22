@@ -1,3 +1,4 @@
 ^seminar\.bp\.strucchange\.Rproj$
 ^\.Rproj\.user$
-^data\.R$
+^dataold\.R$
+^work\.R$

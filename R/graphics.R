@@ -20,7 +20,6 @@ plot_theme <- function(x) {
 #' Create Plots for Data
 #' @param cci Data as defined in the cci() function
 #' @export
-#' @importFrom ggplot2 +
 plots <- function(cci = cci()) {
 
   p <- list()

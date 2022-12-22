@@ -52,7 +52,7 @@ ssr <- function(formula, data, trim = 0.1) {
     ssr = mapply(valid_segm, row(ssr_mtx), col(ssr_mtx), nrow(data), 0, min_length)
   )
 
-  #' calculate residuals necessary for sum squared residuals, avoiding recursive calculation
+  # calculate residuals necessary for sum squared residuals, avoiding recursive calculation
   dt <- df %>%
     dplyr::filter(ssr) %>%
     dplyr::group_by(start) %>%
@@ -65,7 +65,7 @@ ssr <- function(formula, data, trim = 0.1) {
            by = c("start")
   ]
 
-  #' SSR for start to end sequence
+  # SSR for start to end sequence
   residuals <- dt %>%
     tibble::as_tibble() %>%
     dplyr::group_by(start) %>%
@@ -74,7 +74,7 @@ ssr <- function(formula, data, trim = 0.1) {
     ) %>%
     dplyr::ungroup()
 
-  #' join SSR with valid segments
+  # join SSR with valid segments
   ssr_df <- df %>%
     dplyr::filter(ssr) %>%
     dplyr::left_join(
@@ -83,7 +83,7 @@ ssr <- function(formula, data, trim = 0.1) {
       by = c("start", "end")
     )
 
-  #' create permutations of possible segment combinations
+  # create permutations of possible segment combinations
   ssr_df <- ssr_df %>%
     dplyr::mutate(
       end_start = start-1
@@ -101,16 +101,16 @@ ssr <- function(formula, data, trim = 0.1) {
 #' @param ssr ssr table
 #' @export
 #' @importFrom magrittr %>%
-min.ssr <- function(breaks, ssr) {
+min_ssr <- function(breaks, ssr) {
 
-  #' dataframe of permutations
+  # dataframe of permutations
   permutations <- tibble::tibble(
     end_0 = 0
   )
 
-  #' join everything together at the breakpoints
-  #' and filter after one-break for minimal global ssr before next iteration
-  #' same as recursive solution but not recursive
+  # join everything together at the breakpoints
+  # and filter after one-break for minimal global ssr before next iteration
+  # same as recursive solution but not recursive
   for(i in 1:(breaks+1)) {
 
     permutations <- permutations %>%
@@ -128,7 +128,7 @@ min.ssr <- function(breaks, ssr) {
 
   }
 
-  #' filter only permutation across full observation period
+  # filter only permutation across full observation period
   permutations <- permutations %>%
     dplyr::slice_max(!!rlang::sym(paste0("end_", breaks+1))) %>%
     dplyr::slice_min(global_ssr)

@@ -13,13 +13,14 @@ vcovs <- function(formula, data, start, end) {
 #' @param data cci dataframe
 #' @param breaks number of breaks to test for
 #' @param ssr SSR Dataframe
+#' @export
 fstats <- function(formula, data, breaks, ssr) {
 
   q <- ncol(model.matrix(formula, data = data))
 
   obs <- nrow(data)
 
-  ssr_result <- min.ssr(breaks, ssr)
+  ssr_result <- min_ssr(breaks, ssr)
 
   deltas <- unlist(purrr::map2(ssr_result$start, ssr_result$end, ~delta_coef(formula, data, .x, .y)))
   mdelta <- as.matrix(deltas)
