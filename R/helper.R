@@ -1,4 +1,4 @@
-datatable.aware = TRUE
+.datatable.aware = TRUE
 
 
 #' calculate a parallel sum
