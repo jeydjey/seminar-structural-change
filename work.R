@@ -1,5 +1,5 @@
-#
-# library(magrittr)
-# library(seminar.bp.strucchange)
-#
-# cci <- cci()
+
+library(magrittr)
+library(seminar.bp.strucchange)
+
+cci <- cci()

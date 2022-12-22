@@ -7,7 +7,7 @@
 cci <- function(import = FALSE) {
 
   if(!import) {
-    return(readRDS(system.file("extdata", "cci.rda", mustWork = T)))
+    return(readRDS(system.file("extdata", "cci.rda", package = "seminar.bp.strucchange", mustWork = T)))
   }
 
   raw_data <- httr::GET(
