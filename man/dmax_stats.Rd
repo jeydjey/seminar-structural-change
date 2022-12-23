@@ -4,7 +4,7 @@
 \alias{dmax_stats}
 \title{Double maximum test for up to the number of breaks}
 \usage{
-dmax_stats(formula, data, breaks, ssr, sig = "5\%")
+dmax_stats(formula, data, breaks, ssr, conf = 0.95, trim = 0.1)
 }
 \arguments{
 \item{formula}{y~x formula object}
@@ -15,7 +15,9 @@ dmax_stats(formula, data, breaks, ssr, sig = "5\%")
 
 \item{ssr}{SSR Dataframe}
 
-\item{sig}{significance level}
+\item{conf}{confidence interval}
+
+\item{trim}{trimming 0.05 - 0.25}
 }
 \description{
 Double maximum test for up to the number of breaks

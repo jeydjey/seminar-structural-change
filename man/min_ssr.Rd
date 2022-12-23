@@ -4,12 +4,14 @@
 \alias{min_ssr}
 \title{Dynamic programming algorithm for the global minimum of SSR for a number of breaks}
 \usage{
-min_ssr(breaks, ssr)
+min_ssr(breaks, ssr, init = 0)
 }
 \arguments{
 \item{breaks}{number of breaks}
 
 \item{ssr}{ssr table}
+
+\item{init}{begin of first observation - 1}
 }
 \description{
 Dynamic programming algorithm for the global minimum of SSR for a number of breaks

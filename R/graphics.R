@@ -75,7 +75,7 @@ plot_breaks <- function(data, segments) {
   p <- data %>%
     dplyr::mutate(row_number = dplyr::row_number()) %>%
     dplyr::left_join(segments, by = character()) %>%
-    dplyr::filter(start <= row_number, end >= row_number)
+    dplyr::filter(from <= row_number, to >= row_number)
 
   ggplot2::ggplot(p, ggplot2::aes(x=time_period, y=value, color = id)) +
     ggplot2::geom_line(linewidth = 1) +

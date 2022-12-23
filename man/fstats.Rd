@@ -4,7 +4,7 @@
 \alias{fstats}
 \title{Calculate F-statistic value}
 \usage{
-fstats(formula, data, breaks, ssr)
+fstats(formula, data, breaks, ssr, conf = 0.95, trim = 0.1)
 }
 \arguments{
 \item{formula}{y~x formula object}
@@ -14,6 +14,10 @@ fstats(formula, data, breaks, ssr)
 \item{breaks}{number of breaks to test for}
 
 \item{ssr}{SSR Dataframe}
+
+\item{conf}{confidence interval}
+
+\item{trim}{trimming 0.05 - 0.25}
 }
 \description{
 Calculate F-statistic value

@@ -99,13 +99,14 @@ ssr <- function(formula, data, trim = 0.1) {
 #' Dynamic programming algorithm for the global minimum of SSR for a number of breaks
 #' @param breaks number of breaks
 #' @param ssr ssr table
+#' @param init begin of first observation - 1
 #' @export
 #' @importFrom magrittr %>%
-min_ssr <- function(breaks, ssr) {
+min_ssr <- function(breaks, ssr, init = 0) {
 
   # dataframe of permutations
   permutations <- tibble::tibble(
-    to_0 = 0
+    to_0 = init
   )
 
   # join everything together at the breakpoints
@@ -146,11 +147,26 @@ min_ssr <- function(breaks, ssr) {
     dplyr::mutate(from = dplyr::lag(to + 1, default = 1),
                   id = dplyr::row_number())
 
+  if(nrow(permutations)==0) {
+
+    return(
+      list(
+        breaks = 0,
+        from = 1,
+        to = max(ssr$to),
+        id = 1,
+        ssr = ssr %>% dplyr::filter(to_from == 0, to == max(to)) %>% dplyr::pull(ssr),
+        global_ssr = ssr %>% dplyr::filter(to_from == 0, to == max(to)) %>% dplyr::pull(ssr)
+      )
+    )
+  }
+
   list(
     breaks = breaks,
     from = segments$from,
     to = segments$to,
     id = segments$id,
-    ssr = sum(segments$ssr)
+    ssr = segments$ssr,
+    global_ssr = sum(segments$ssr)
   )
 }
