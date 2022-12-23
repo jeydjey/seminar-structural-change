@@ -7,15 +7,23 @@ vcovs <- function(formula, data, from, to) {
   sandwich::kernHAC(lm(formula, data[from:to,]))
 }
 
-fcrit <- function(sig, q, breaks) {
+fcrit <- function(conf, trim, q, k) {
 
-  #TODO load crit values and return as requested
+  dplyr::pull(dplyr::filter(readRDS(system.file("extdata", "crit_supf.rda", package = "seminar.bp.strucchange", mustWork = T)),
+                conf == !!conf, trim == !!trim, q == !!q, k == !!k), crit)
 
 }
 
-dcrit <- function(sig, q, type = c("ud", "wd")) {
+dcrit <- function(conf, trim, q, dmax = c("udmax", "wdmax")) {
 
-  #TODO load crit values and return as requested
+  dplyr::pull(dplyr::filter(readRDS(system.file("extdata", "crit_dmax.rda", package = "seminar.bp.strucchange", mustWork = T)),
+                            conf == !!conf, trim == !!trim, q == !!q, dmax == !!dmax), crit)
+}
+
+seqcrit <- function(conf, trim, q, l) {
+
+  dplyr::pull(dplyr::filter(readRDS(system.file("extdata", "crit_seq.rda", package = "seminar.bp.strucchange", mustWork = T)),
+                            conf == !!conf, trim == !!trim, q == !!q, l == !!l), crit)
 
 }
 

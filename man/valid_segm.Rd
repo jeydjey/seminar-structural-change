@@ -4,12 +4,12 @@
 \alias{valid_segm}
 \title{Function to decide on valid segments in series}
 \usage{
-valid_segm(start, end, length, n_breaks, min_length)
+valid_segm(from, to, length, n_breaks, min_length)
 }
 \arguments{
-\item{start}{begin of segment}
+\item{from}{begin of segment}
 
-\item{end}{end of segment}
+\item{to}{to of segment}
 
 \item{length}{length of total observation period}
 

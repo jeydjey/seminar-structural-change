@@ -4,14 +4,14 @@
 \alias{rec_res}
 \title{calculate the squared recurive residual in a segment}
 \usage{
-rec_res(formula, start, end, data)
+rec_res(formula, from, to, data)
 }
 \arguments{
 \item{formula}{y~x formula object}
 
-\item{start}{start of segment}
+\item{from}{from of segment}
 
-\item{end}{end of segment}
+\item{to}{to of segment}
 
 \item{data}{dataframe of observations}
 }
