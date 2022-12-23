@@ -94,7 +94,7 @@ fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
 #' @param conf confidence interval
 #' @param trim trimming 0.05 - 0.25
 #' @export
-#' @importFrom magrittr %>%
+#' @importFrom magrittr %>% %$%
 dmax_stats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
 
   z <- model.matrix(formula, data = data)
