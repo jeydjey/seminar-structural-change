@@ -4,7 +4,7 @@ delta_coef <- function(formula, data, from, to) {
 }
 
 vcovs <- function(formula, data, from, to) {
-  sandwich::kernHAC(lm(formula, data[from:to,]), kernel = "Quadratic Spectral", approx = "AR(1)")
+  sandwich::kernHAC(lm(formula, data[from:to,]), prewhite = (to-from)>3)
 }
 
 fcrit <- function(conf, trim, q, k) {
@@ -135,7 +135,7 @@ dmax_stats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
 #' @importFrom magrittr %>%
 lstats <- function(formula, data, l, ssr, conf = 0.95, trim = 0.1) {
 
-  y <- model.response(model.frame(formula, data = data))
+  z <- model.matrix(formula, data = data)
   q <- ncol(z)
 
   ssr_result <- min_ssr(l, ssr)
@@ -174,21 +174,17 @@ lstats <- function(formula, data, l, ssr, conf = 0.95, trim = 0.1) {
 #' @param ssr SSR Dataframe
 #' @param conf confidence interval
 #' @param trim trimming 0.05 - 0.25
+#' @param skip Should the test of significance for skip+1|skip be skipped, -1 for no skip of 1|0
 #' @export
 #' @importFrom magrittr %>%
-seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1) {
+seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1) {
 
-  y <- model.response(model.frame(formula, data = data))
+  z <- model.matrix(formula, data = data)
   q <- ncol(z)
 
   result <- min_ssr(0, ssr)
 
   for(i in 1:m) {
-
-    ltest <- lstats(formula, data, i-1, ssr, conf, trim)
-
-    if(!ltest$significant)
-      return(result)
 
     fstat <- purrr::map(1:length(result$from), function(.x) {
 
@@ -209,25 +205,28 @@ seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1) {
         list(
           id = .y$id,
           fstat = stats$fstat,
-          breaks_from = stats$breaks_from,
-          breaks_to = stats$breaks_to,
+          breaks_from = stats$breaks_from + .y$from - 1,
+          breaks_to = stats$breaks_to + .y$from - 1,
           ssr = stats$ssr
         )
 
       }) %>% dplyr::bind_rows() %>%
       dplyr::slice_max(fstat)
 
-    old_id <- fstat$id[1]
-    pos <- which(result$id==old_id)
+    if(fstat$fstat[1] < lcrit(conf, trim, q, i-1) && !(i-1 <= skip))
+      return(result)
 
-    result$breaks <- result$breaks+1
-    result$from <- c(result$from[-pos], fstat$breaks_from)
-    o <- order(result$from)
-    result$to <- c(result$to[-pos], fstat$breaks_to)[o]
-    result$ssr <- c(result$ssr[-pos], fstat$ssr)[o]
-    result$from <- result$from[o]
-    result$id <- seq_len(result$breaks+1)
-    result$global_ssr <- sum(result$ssr)
+      old_id <- fstat$id[1]
+      pos <- which(result$id==old_id)
+
+      result$breaks <- result$breaks+1
+      result$from <- c(result$from[-pos], fstat$breaks_from)
+      o <- order(result$from)
+      result$to <- c(result$to[-pos], fstat$breaks_to)[o]
+      result$ssr <- c(result$ssr[-pos], fstat$ssr)[o]
+      result$from <- result$from[o]
+      result$id <- seq_len(result$breaks+1)
+      result$global_ssr <- sum(result$ssr)
 
   }
 

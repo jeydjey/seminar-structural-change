@@ -30,10 +30,16 @@ plots <- function(cci = cci()) {
     ggplot2::ylab("Index Value") +
     plot_theme("date")
 
-  p$diff_ts <- ggplot2::ggplot(na.omit(cci), ggplot2::aes(x=time_period, y=diff)) +
+  p$diff_ts <- ggplot2::ggplot(na.omit(dplyr::select(cci, time_period, diff)), ggplot2::aes(x=time_period, y=diff)) +
     ggplot2::geom_line( color="orange", linewidth = 1) +
     ggplot2::xlab("Index Year") +
-    ggplot2::ylab("Index Change") +
+    ggplot2::ylab("Index First Difference") +
+    plot_theme("date")
+
+  p$diff_2_ts <- ggplot2::ggplot(na.omit(dplyr::select(cci, time_period, diff_2)), ggplot2::aes(x=time_period, y=diff_2)) +
+    ggplot2::geom_line( color="orange", linewidth = 1) +
+    ggplot2::xlab("Index Year") +
+    ggplot2::ylab("Index Second Difference") +
     plot_theme("date")
 
   p$log_ts <- ggplot2::ggplot(cci, ggplot2::aes(x=time_period, y=log_val)) +
@@ -42,10 +48,10 @@ plots <- function(cci = cci()) {
     ggplot2::ylab("Index Logarithm") +
     plot_theme("date")
 
-  p$log_diff_ts <- ggplot2::ggplot(na.omit(cci), ggplot2::aes(x=time_period, y=log_diff)) +
+  p$log_diff_ts <- ggplot2::ggplot(na.omit(dplyr::select(cci, time_period, log_diff)), ggplot2::aes(x=time_period, y=log_diff)) +
     ggplot2::geom_line(color="orange", linewidth = 1) +
     ggplot2::xlab("Index Year") +
-    ggplot2::ylab("Index Logarithm Change") +
+    ggplot2::ylab("Index Logarithm Frist Difference") +
     plot_theme("date")
 
   p$annual_ts <- ggplot2::ggplot(cci, ggplot2::aes(x=time_period, y=annual_growth)) +
@@ -68,16 +74,20 @@ plots <- function(cci = cci()) {
 #' Plot breaks in data
 #' @param data cci dataframe
 #' @param segments segments dataframe with start, end and id
+#' @param value column of values to plot
 #' @export
 #' @importFrom magrittr %>%
-plot_breaks <- function(data, segments) {
+plot_breaks <- function(data, segments, value = rlang::sym("value")) {
+
+  val <- rlang::enquo(value)
 
   p <- data %>%
     dplyr::mutate(row_number = dplyr::row_number()) %>%
     dplyr::left_join(segments, by = character()) %>%
-    dplyr::filter(from <= row_number, to >= row_number)
+    dplyr::filter(from <= row_number, to >= row_number) %>%
+    dplyr::mutate(id = as.character(id))
 
-  ggplot2::ggplot(p, ggplot2::aes(x=time_period, y=value, color = id)) +
+  ggplot2::ggplot(p, ggplot2::aes(x=time_period, y=!!val, color = id)) +
     ggplot2::geom_line(linewidth = 1) +
     ggplot2::xlab("Index Year") +
     ggplot2::ylab("Index Value") +

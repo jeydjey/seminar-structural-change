@@ -4,12 +4,14 @@
 \alias{plot_breaks}
 \title{Plot breaks in data}
 \usage{
-plot_breaks(data, segments)
+plot_breaks(data, segments, value = rlang::sym("value"))
 }
 \arguments{
 \item{data}{cci dataframe}
 
 \item{segments}{segments dataframe with start, end and id}
+
+\item{value}{column of values to plot}
 }
 \description{
 Plot breaks in data

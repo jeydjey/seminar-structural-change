@@ -4,7 +4,7 @@
 \alias{seq_test}
 \title{Sequential testing for another break up to m}
 \usage{
-seq_test(formula, data, m, ssr, conf = 0.95, trim = 0.1)
+seq_test(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1)
 }
 \arguments{
 \item{formula}{y~x formula object}
@@ -16,6 +16,8 @@ seq_test(formula, data, m, ssr, conf = 0.95, trim = 0.1)
 \item{conf}{confidence interval}
 
 \item{trim}{trimming 0.05 - 0.25}
+
+\item{skip}{Should the test of significance for skip+1|skip be skipped, -1 for no skip of 1|0}
 
 \item{breaks}{number of 1:breaks to test for}
 }
