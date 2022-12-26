@@ -4,7 +4,15 @@
 \alias{fstats}
 \title{Calculate F-statistic value}
 \usage{
-fstats(formula, data, breaks, ssr, conf = 0.95, trim = 0.1)
+fstats(
+  formula,
+  data,
+  breaks,
+  ssr,
+  conf = 0.95,
+  trim = 0.1,
+  autocorrelation = FALSE
+)
 }
 \arguments{
 \item{formula}{y~x formula object}
@@ -18,6 +26,8 @@ fstats(formula, data, breaks, ssr, conf = 0.95, trim = 0.1)
 \item{conf}{confidence interval}
 
 \item{trim}{trimming 0.05 - 0.25}
+
+\item{autocorrelation}{does the data contain autocorrelation?}
 }
 \description{
 Calculate F-statistic value

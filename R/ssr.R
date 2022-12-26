@@ -170,3 +170,64 @@ min_ssr <- function(breaks, ssr, init = 0) {
     global_ssr = sum(segments$ssr)
   )
 }
+
+#' Calculate the Bayesian Information Criteron for 0 to b breaks
+#' @param formula formula y~x object
+#' @param data data
+#' @param b number of breaks
+#' @param ssr ssr table
+#' @export
+#' @importFrom magrittr %$%
+bic <- function(formula, data, b, ssr) {
+
+  z <- model.matrix(formula, data = data)
+  q <- ncol(z)
+
+  ssrval <- unlist(purrr::map(0:b, ~min_ssr(.x, ssr) %$% global_ssr))
+
+  bicval <- unlist(purrr::map(1:(b+1), function(x) {
+
+    log(ssrval[x] / nrow(data)) + log(nrow(data)) * (x-1) * (q+1) / nrow(data)
+
+  }))
+
+  minb <- which.min(bicval)
+
+  list(
+    breaks = minb-1,
+    bic = setNames(bicval, 0:b),
+    ssr = setNames(ssrval, 0:b)
+  )
+
+}
+
+
+#' Calculate the modified Schwarz criterion for 0 to b breaks
+#' @param formula formula y~x object
+#' @param data data
+#' @param b number of breaks
+#' @param ssr ssr table
+#' @export
+#' @importFrom magrittr %$%
+lwz <- function(formula, data, b, ssr) {
+
+  z <- model.matrix(formula, data = data)
+  q <- ncol(z)
+
+  ssrval <- unlist(purrr::map(0:b, ~min_ssr(.x, ssr) %$% global_ssr))
+
+  lwzval <- unlist(purrr::map(1:(b+1), function(x) {
+
+    log(ssrval[x] / (nrow(data) - x * q - x + 1 )) + ((x - 1) * (q + 1) * 0.299 * (log(nrow(data)))^(2.1)) / nrow(data)
+
+  }))
+
+  minl <- which.min(lwzval)
+
+  list(
+    breaks = minl-1,
+    lwz = setNames(lwzval, 0:b),
+    ssr = setNames(ssrval, 0:b)
+  )
+
+}

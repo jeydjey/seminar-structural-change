@@ -3,8 +3,88 @@ delta_coef <- function(formula, data, from, to) {
   lm(formula, data = data[from:to,])$coeff
 }
 
-vcovs <- function(formula, data, from, to) {
-  sandwich::kernHAC(lm(formula, data[from:to,]), prewhite = (to-from)>3)
+hac <- function(zb, u, prewhite = 1) {
+
+  r <- dim(zb)[1]
+  s <- dim(zb)[2]
+
+  b = matrix(0, nrow = s, ncol = 1)
+  mb = matrix(0, nrow = s, ncol = d)
+  hac
+
+}
+
+vcovs <- function(formula, data, from, to, autocorrelation = FALSE) {
+
+  z <- model.matrix(formula, data)
+  x <- model.response(model.frame(formula, data = data))
+
+  #checking data distributions across segments
+  data_dist_eq <- all(unlist(purrr::map(seq_len(length(from)-1), ~ks.test(x[from[.x]:to[.x]], x[from[.x+1]:to[.x+1]])$p.value))>=0.05)
+  #checking error distribution across segments
+  error_dist_eq <- all(unlist(purrr::map(seq_len(length(from)-1), ~ks.test(residuals(lm(formula, data[from[.x]:to[.x],])),
+                                                                           residuals(lm(formula, data[from[.x+1]:to[.x+1],])))$p.value))>=0.05)
+  zb <- zbar(z, from[-1]-1)
+
+  if(!autocorrelation & !data_dist_eq & error_dist_eq){
+    #No serial correlation, different distributions for the data, identical distributions for the errors
+    mdl <- lm(formula, data)
+    s_hat <- sigma(mdl)^2
+    return(s_hat*solve((1/nrow(data)*t(zb)%*%zb)))
+  }
+
+  if(!autocorrelation & !data_dist_eq & !error_dist_eq){
+    #No serial correlation, different distribution for the data, different distributions for the errors
+    s_hat <- diag(
+      unlist(purrr::map2(from, to, function(.x,.y) {
+        d <- data[.x:.y,]
+        mdl <- lm(formula, d)
+        return(1/nrow(d) * sum(residuals(mdl)^2))
+      }))
+    )
+    return(s_hat %x% diag(1, dim(z)[2]) %*% solve(t(zb) %*% zb))
+  }
+
+  if(!autocorrelation & data_dist_eq & error_dist_eq){
+    #No serial correlation, identical distribution for the data, identical variances for the errors
+    mdl <- lm(formula, data)
+    s_hat <- sigma(mdl)^2
+    l_hat <- diag(c(diff(from), nrow(data)-sum(diff(from))))/nrow(data)
+    return(s_hat*solve(l_hat %*% (t(zb)%*%zb)))
+  }
+
+  if(!autocorrelation & data_dist_eq & !error_dist_eq){
+    #No serial correlation, identical distribution for the data, different distributions for the errors
+    s_hat <- diag(
+      unlist(purrr::map2(from, to, function(.x,.y) {
+        d <- data[.x:.y,]
+        mdl <- lm(formula, d)
+        return(1/nrow(d) * sum(residuals(mdl)^2))
+      }))
+    )
+    l_hat <- diag(c(diff(from), nrow(data)-sum(diff(from))))/nrow(data)
+    return(s_hat %x% diag(1, dim(z)[2]) %*% solve(l_hat %x% (t(zb)%*%zb)))
+  }
+
+  if(autocorrelation & !data_dist_eq & !error_dist_eq) {
+    #serial correlation, different distributions for data and errors
+    deltat <- diag(c(diff(from), nrow(data)-sum(diff(from))))
+    hac <- diag(unlist(purrr::map2(from, to, ~sandwich::kernHAC(lm(formula, data[.x:.y,]), prewhite = (.y-.x)>3))))
+    #return(deltat %*% solve(t(zb) %*% zb) %*% hac %*% solve(t(zb) %*% zb))
+    return(hac)
+  }
+
+  if(autocorrelation & error_dist_eq) {
+    #serial correlation, same distribution for the errors
+    hac <- sandwich::kernHAC(lm(formula, data))
+    l_hat <- diag(c(diff(from), nrow(data)-sum(diff(from))))/nrow(data)
+    #return(nrow(data) * solve(t(zb) %*% zb) %*% (l_hat %x% hac) %*% solve(t(zb) %*% zb))
+    return(hac)
+  }
+
+  stop(glue::glue("vcov case for autocorrelation = {autocorrelation}, equal data distribution = {data_dist_eq} and equal error distribution = {error_dist_eq} is not defined"),
+      call. = FALSE)
+
 }
 
 fcrit <- function(conf, trim, q, k) {
@@ -34,8 +114,9 @@ lcrit <- function(conf, trim, q, l) {
 #' @param ssr SSR Dataframe
 #' @param conf confidence interval
 #' @param trim trimming 0.05 - 0.25
+#' @param autocorrelation does the data contain autocorrelation?
 #' @export
-fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
+fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1, autocorrelation = FALSE) {
 
   z <- model.matrix(formula, data = data)
   q <- ncol(z)
@@ -57,7 +138,7 @@ fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
   }
 
   deltas <- unlist(purrr::map2(ssr_result$from, ssr_result$to, ~delta_coef(formula, data, .x, .y)))
-  mdelta <- as.matrix(deltas)
+  mdelta <- matrix(deltas)
 
   mr <- matrix(0, breaks, breaks+1)
   for(i in 1:breaks) {
@@ -66,12 +147,11 @@ fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
   }
   mr <- mr %x% diag(q)
 
-  covs <- purrr::map2(ssr_result$from, ssr_result$to, ~vcovs(formula, data, .x, .y))
-  mvcov <- diag(covs)
+  mvcov <- vcovs(formula, data, ssr_result$from, ssr_result$to, autocorrelation = autocorrelation)
 
-  f <- 1/obs * (((obs-(breaks+1)*q)/breaks*q) %*% t(mdelta) %*% t(mr) %*% solve(mr %*% mvcov %*% t(mr)) %*% mr %*% mdelta)
+  f <- ((obs-(breaks+1)*q)/(breaks*q*obs)) %*% t(mdelta) %*% t(mr) %*% solve(mr %*% mvcov %*% t(mr)) %*% mr %*% mdelta
 
-  crit <- fcrit(conf = 0.95, trim = trim, q = q, k = breaks)
+  crit <- fcrit(conf = conf, trim = trim, q = q, k = breaks)
 
   list(
     fstat = f[1,1],
@@ -93,14 +173,15 @@ fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
 #' @param ssr SSR Dataframe
 #' @param conf confidence interval
 #' @param trim trimming 0.05 - 0.25
+#' @param autocorrelation does the data contain autocorrelation?
 #' @export
 #' @importFrom magrittr %>% %$%
-dmax_stats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
+dmax_stats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1, autocorrelation = FALSE) {
 
   z <- model.matrix(formula, data = data)
   q <- ncol(z)
 
-  fstat <- dplyr::bind_rows(purrr::map(1:breaks, ~fstats(formula, data, .x, ssr) %$%
+  fstat <- dplyr::bind_rows(purrr::map(1:breaks, ~fstats(formula, data, .x, ssr, autocorrelation = autocorrelation) %$%
                                tibble::tibble(fstat = fstat, crit = crit)))
 
   ud <- max(fstat$fstat)
@@ -131,9 +212,10 @@ dmax_stats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1) {
 #' @param ssr SSR Dataframe
 #' @param conf confidence interval
 #' @param trim trimming 0.05 - 0.25
+#' @param autocorrelation does the data contain autocorrelation?
 #' @export
 #' @importFrom magrittr %>%
-lstats <- function(formula, data, l, ssr, conf = 0.95, trim = 0.1) {
+lstats <- function(formula, data, l, ssr, conf = 0.95, trim = 0.1, autocorrelation = FALSE) {
 
   z <- model.matrix(formula, data = data)
   q <- ncol(z)
@@ -148,7 +230,7 @@ lstats <- function(formula, data, l, ssr, conf = 0.95, trim = 0.1) {
         dplyr::mutate(to = to - (.x-1),
                       to_from = to_from - (.x-1))
 
-      fstats(formula, data[.x:.y,], 1, ssr_2, conf, trim)
+      fstats(formula, data[.x:.y,], 1, ssr_2, conf, trim, autocorrelation = autocorrelation)
 
 
     })
@@ -175,9 +257,10 @@ lstats <- function(formula, data, l, ssr, conf = 0.95, trim = 0.1) {
 #' @param conf confidence interval
 #' @param trim trimming 0.05 - 0.25
 #' @param skip Should the test of significance for skip+1|skip be skipped, -1 for no skip of 1|0
+#' @param autocorrelation does the data contain autocorrelation?
 #' @export
 #' @importFrom magrittr %>%
-seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1) {
+seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1, autocorrelation = FALSE) {
 
   z <- model.matrix(formula, data = data)
   q <- ncol(z)
@@ -200,7 +283,7 @@ seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1) 
           dplyr::mutate(to = to - (.y$from-1),
                         to_from = to_from - (.y$from-1))
 
-        stats <- fstats(formula, data[.y$from:.y$to,], 1, ssr_2, conf, trim)
+        stats <- fstats(formula, data[.y$from:.y$to,], 1, ssr_2, conf, trim, autocorrelation = autocorrelation)
 
         list(
           id = .y$id,
@@ -234,4 +317,5 @@ seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1) 
 
 
 }
+
 

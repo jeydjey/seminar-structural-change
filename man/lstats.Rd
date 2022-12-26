@@ -4,7 +4,7 @@
 \alias{lstats}
 \title{F-test for l+1|l breaks}
 \usage{
-lstats(formula, data, l, ssr, conf = 0.95, trim = 0.1)
+lstats(formula, data, l, ssr, conf = 0.95, trim = 0.1, autocorrelation = FALSE)
 }
 \arguments{
 \item{formula}{y~x formula object}
@@ -16,6 +16,8 @@ lstats(formula, data, l, ssr, conf = 0.95, trim = 0.1)
 \item{conf}{confidence interval}
 
 \item{trim}{trimming 0.05 - 0.25}
+
+\item{autocorrelation}{does the data contain autocorrelation?}
 
 \item{breaks}{number of 1:breaks to test for}
 }
