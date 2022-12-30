@@ -69,9 +69,15 @@ vcovs <- function(formula, data, from, to, autocorrelation = FALSE) {
   if(autocorrelation & !data_dist_eq & !error_dist_eq) {
     #serial correlation, different distributions for data and errors
     deltat <- diag(c(diff(from), nrow(data)-sum(diff(from))))
-    hac <- diag(unlist(purrr::map2(from, to, ~sandwich::kernHAC(lm(formula, data[.x:.y,]), prewhite = (.y-.x)>3))))
+    hac <- purrr::map2(from, to, ~sandwich::kernHAC(lm(formula, data[.x:.y,]), prewhite = (.y-.x)>3))
     #return(deltat %*% solve(t(zb) %*% zb) %*% hac %*% solve(t(zb) %*% zb))
-    return(hac)
+    mhac <- matrix(0, nrow = dim(z)[2]*length(from), ncol = dim(z)[2]*length(from))
+    mi <- seq(1, dim(z)[2]*length(from), dim(z)[2])
+    for(i in 1:length(from)) {
+      mhac[mi[i]:(mi[i]+1), mi[i]:(mi[i]+1)] <- drop(hac[[i]])
+    }
+
+    return(mhac)
   }
 
   if(autocorrelation & error_dist_eq) {
@@ -79,7 +85,7 @@ vcovs <- function(formula, data, from, to, autocorrelation = FALSE) {
     hac <- sandwich::kernHAC(lm(formula, data))
     l_hat <- diag(c(diff(from), nrow(data)-sum(diff(from))))/nrow(data)
     #return(nrow(data) * solve(t(zb) %*% zb) %*% (l_hat %x% hac) %*% solve(t(zb) %*% zb))
-    return(hac)
+    return(l_hat %x% hac)
   }
 
   stop(glue::glue("vcov case for autocorrelation = {autocorrelation}, equal data distribution = {data_dist_eq} and equal error distribution = {error_dist_eq} is not defined"),
@@ -317,5 +323,250 @@ seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1, 
 
 
 }
+
+
+#' Calculate Confidence intervals for 2.5% and 5% significance
+#' @param formula formula y~x object
+#' @param data data
+#' @param from segment position from
+#' @param to segment position to
+#' @param autocorrellation autocorrelation present?
+#' @export
+conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
+
+  y <- model.response(model.frame(formula, data = data))
+  z <- model.matrix(formula, data = data)
+  q <- ncol(z)
+
+  breakpos <- from[-1] - 1
+
+  zb <- zbar(z, breakpos)
+
+  delta <- ols(y, zb)
+  residuals <- y - zb %*% delta
+
+  rb <- zbar(residuals, breakpos)
+
+  data_dist_eq <- all(unlist(purrr::map(seq_len(length(from)-1), ~ks.test(y[from[.x]:to[.x]], y[from[.x+1]:to[.x+1]])$p.value))>=0.05)
+  #checking error distribution across segments
+  error_dist_eq <- all(unlist(purrr::map(seq_len(length(from)-1), ~ks.test(residuals(lm(formula, data[from[.x]:to[.x],])),
+                                                                           residuals(lm(formula, data[from[.x+1]:to[.x+1],])))$p.value))>=0.05)
+  regressor_dist_eq <- all(unlist(
+    lapply(1:q, function(a, z) {
+      all(unlist(purrr::map(seq_len(length(from)-1), ~ks.test(z[from[.x]:to[.x],a],
+                                                              z[from[.x+1]:to[.x+1],a])$p.value))>=0.05)
+    }, z = z)
+  ))
+
+  dhat_temp <- delta[(q+1):(q*length(from))] - delta[1:(q*length(from)-q)]
+  dmat <- matrix(0,  ncol = q*length(breakpos), nrow = length(breakpos))
+  for(i in 1:length(breakpos)) {
+    dmat[i,i*q-1] <- dhat_temp[i*q-1]
+    dmat[i,i*q] <- dhat_temp[i*q]
+  }
+
+  deltat <- diag(c(diff(from), nrow(data)-sum(diff(from))))
+
+
+  #Q
+  if(regressor_dist_eq) {
+
+    qmat1 <- matrix(0, nrow = q*length(breakpos), ncol = q*length(breakpos))
+    for(i in 1:length(breakpos)) {
+      qmat1[(i*q-1):(i*q),(i*q-1):(i*q)] <- t(z) %*% z / dim(z)[1]
+    }
+
+    qmat2 <- qmat1
+
+  }
+
+  if(!regressor_dist_eq) {
+
+    z_temp <- t(zb[,1:(q*length(breakpos))]) %*% zb[,1:(q*length(breakpos))]
+    for(i in 1:(length(from)-1)) {
+      z_temp[(i*q-1):(i*q),(i*q-1):(i*q)] <- z_temp[(i*q-1):(i*q),(i*q-1):(i*q)] / deltat[i,i]
+    }
+    qmat1 <- z_temp
+
+    z_temp <- t(zb[,(q+1):(q*(length(breakpos)+1))]) %*% zb[,(q+1):(q*(length(breakpos)+1))]
+    for(i in 1:(length(from)-1)) {
+      z_temp[(i*q-1):(i*q),(i*q-1):(i*q)] <- z_temp[(i*q-1):(i*q),(i*q-1):(i*q)] / deltat[i+1,i+1]
+    }
+    qmat2 <- z_temp
+
+  }
+
+
+  #Phi
+  if(!autocorrelation & error_dist_eq) {
+
+    phimat1 <- matrix(0, nrow = length(breakpos), ncol = length(breakpos))
+    for(i in 1:length(breakpos)) {
+      phimat1[i,i] <- t(residuals) %*% residuals / dim(z)[1]
+    }
+    phimat2 <- phimat1
+  }
+
+  if(!autocorrelation & !error_dist_eq) {
+
+    r_temp <- t(rb[,1:length(breakpos)]) %*% rb[,1:length(breakpos)]
+    for(i in 1:length(breakpos)) {
+      r_temp[i,i] <- r_temp[i,i] / deltat[i,i]
+    }
+    phimat1 <- r_temp
+
+    r_temp <- t(rb[,2:(length(breakpos)+1)]) %*% rb[,2:(length(breakpos)+1)]
+    for(i in 1:length(breakpos)) {
+      r_temp[i,i] <- r_temp[i,i] / deltat[i+1,i+1]
+    }
+    phimat2 <- r_temp
+  }
+
+  if(autocorrelation & !error_dist_eq) {
+
+    hac <- purrr::map2(from, to, ~sandwich::kernHAC(lm(formula, data[.x:.y,]), prewhite = (.y-.x)>3))
+    omega <- matrix(0, nrow = dim(z)[2]*length(from), ncol = dim(z)[2]*length(from))
+    mi <- seq(1, dim(z)[2]*length(from), dim(z)[2])
+    for(i in 1:length(from)) {
+      omega[mi[i]:(mi[i]+1), mi[i]:(mi[i]+1)] <- drop(hac[[i]])
+    }
+
+    omega1 <- omega[1:(q*length(breakpos)), 1:(q*length(breakpos))]
+    omega2 <- omega[(1+q):(q*length(breakpos)+q), (1+q):(q*length(breakpos)+q)]
+
+  }
+
+  if(autocorrelation & error_dist_eq) {
+
+    hac <- sandwich::kernHAC(lm(formula, data))
+    omega1 <- matrix(0, nrow = q*length(breakpos), ncol = q*length(breakpos))
+    for(i in 1:length(breakpos)) {
+      omega1[(i*q-1):(i*q), (i*q-1):(i*q)] <- drop(hac)
+    }
+
+    omega2 <- omega1
+  }
+
+  if(autocorrelation) {
+
+    phimat1 <- dmat %*% omega1 %*% t(dmat) / (dmat %*% qmat1 %*% t(dmat))
+    phimat2 <- dmat %*% omega2 %*% t(dmat) / (dmat %*% qmat2 %*% t(dmat))
+
+  }
+
+
+  eta <- dmat %*% qmat2 %*% t(dmat) /  (dmat %*% qmat1 %*% t(dmat))
+
+  crit <- crit_val(diag(eta), diag(phimat1), diag(phimat2))
+
+  if(!autocorrelation) {
+    a = diag(dmat %*% qmat1 %*% t(dmat) %*% solve(phimat1))
+  } else {
+    a = diag((dmat %*% qmat1 %*% t(dmat)) %*% (dmat %*% qmat1 %*% t(dmat)) / (dmat %*% omega1 %*% t(dmat)))
+  }
+
+  bound <- matrix(0, nrow = 4, ncol = length(breakpos))
+
+  bound[1,] <- floor(breakpos - crit[4,]/a)
+  bound[2,] <- ceiling(breakpos - crit[1,]/a)+1
+  bound[3,] <- floor(breakpos - crit[3,]/a)
+  bound[4,] <- ceiling(breakpos - crit[2,]/a)+1
+
+  rownames(bound) <- c("2.5% lower", "2.5% upper", "5% lower", "5% upper")
+
+  return(bound)
+
+}
+
+funcg <- function (x,bet,alph,b,deld,gam){
+  #function copied from GAUSS program of Bai and Perron
+
+  if(x <= 0){
+    xb = bet * sqrt(abs(x))
+    if (abs(xb) <= 30){
+      g = -sqrt(-x/(2*pi)) * exp(x/8) - (bet/alph)*exp(-alph*x)*pnorm(-bet*sqrt(abs(x)))+
+        ((2*bet*bet/alph)-2-x/2)*pnorm(-sqrt(abs(x))/2)
+    }
+    else{
+      aa=log(bet/alph)-alph*x-xb^2/2-log(sqrt(2*pi))-log(xb)
+      g=-sqrt(-x/(2*pi))*exp(x/8)-exp(aa)*pnorm(-sqrt(abs(x))/2)+
+        ((2*bet*bet/alph)-2-x/2)*pnorm(-sqrt(abs(x))/2)
+    }
+  } else {
+    xb=deld*sqrt(x)
+
+    if (abs(xb) <= 30){
+
+      g=1+(b/sqrt(2*pi))*sqrt(x)*exp(-b*b*x/8)+
+        (b*deld/gam)*exp(gam*x)*pnorm(-deld*sqrt(x))+
+        (2-b*b*x/2-2*deld*deld/gam)*pnorm(-b*sqrt(x)/2);
+    }
+    else{
+
+      aa=log((b*deld/gam))+gam*x-xb^2/2-log(sqrt(2*pi))-log(xb);
+      g=1+(b/sqrt(2*pi))*sqrt(x)*exp(-b*b*x/8)+
+        exp(aa)+(2-b*b*x/2-2*deld*deld/gam)*pnorm(-b*sqrt(x)/2);
+    }
+  }
+  return(g)
+}
+
+
+crit_val <- function(eta, phi1, phi2) {
+  #function copied from GAUSS program of Bai and Perron
+
+  a <- phi1/phi2
+  gam <- ((phi2/phi1)+1)*eta/2
+  b <- sqrt(phi1*eta/phi2)
+  deld <- sqrt(phi2*eta/phi1)+b/2
+  alph <- a * (1+a)/2
+  bet <- (1+2*a)/2
+  sig <- c(0.025, 0.05, 0.95, 0.975)
+
+  crit <- purrr::pmap(
+    list(gam, b, deld, alph, bet),
+    function(gam, b, deld, alph, bet) {
+
+      out <- double(4)
+
+      for(i in 1:4) {
+        #initialize upper, lower bound and critical value
+        upb = 2000
+        lwb = -2000
+        crit = 999999
+        cct = 1
+
+        while(abs(crit) >= 0.000001) {
+          cct = cct + 1
+          if (cct > 100){
+            print('the procedure to get critical values for the break dates has reached the upper bound on the number of iterations. This may happens in the procedure cvg. The resulting confidence interval for this break date is incorect')
+            break
+          }
+          else{
+            xx <- lwb + (upb-lwb)/2
+            pval <- funcg(xx,bet,alph,b,deld,gam)
+            crit <- pval - sig[i]
+            if (crit <= 0) {
+              lwb <- xx}
+            else {
+              upb <- xx}
+          }
+        }
+        out[i] = xx
+      }
+
+      return(out)
+
+    }
+  )
+
+ m <- do.call(cbind, crit)
+
+ rownames(m) <- sig
+
+ return(m)
+
+}
+
 
 

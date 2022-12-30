@@ -42,8 +42,6 @@ kpi <- function(cci = cci()) {
   xts$value <- xts::xts(cci$value, cci$time_period)
   xts$diff <- na.omit(xts::xts(cci$diff, cci$time_period))
   xts$diff_2 <- na.omit(xts::xts(cci$diff_2, cci$time_period))
-  xts$log <- xts::xts(cci$log_val, cci$time_period)
-  xts$log_diff <- na.omit(xts::xts(cci$log_diff, cci$time_period))
   xts$ann_growth <- xts::xts(cci$annual_growth, cci$time_period)
 
   k <- list()
@@ -70,12 +68,6 @@ kpi <- function(cci = cci()) {
   #second difference
   k$adf_diff_2 <- tseries::adf.test(na.omit(cci$diff_2))
   k$pp_diff_2 <- tseries::pp.test(na.omit(cci$diff_2))
-  # #log values
-  # k$adf_log_value <- tseries::adf.test(cci$log_val)
-  # k$pp_log_value <- tseries::pp.test(cci$log_val)
-  # #log first difference
-  # k$adf_log_diff <- tseries::adf.test(na.omit(cci$log_diff))
-  # k$pp_log_diff <- tseries::pp.test(na.omit(cci$log_diff))
 
   #kurtosis
   k$kurtosis <- TSA::kurtosis(cci$value)
@@ -87,24 +79,32 @@ kpi <- function(cci = cci()) {
   # observation values
   k$acf_value <- acf(xts$value, lag.max = 10, plot = F)
   k$pacf_value <- pacf(xts$value, lag.max = 10, plot = F)
-  k$dwt_value <- car::durbinWatsonTest(lm(value~1, cci), max.lag = 3)
+  k$dwt_value <- car::durbinWatsonTest(lm(value~1, cci), max.lag = 4)
   # first difference
   k$acf_diff  <- acf(xts$diff, lag.max = 10, plot = F)
   k$pacf_diff <- pacf(xts$diff, lag.max = 10, plot = F)
-  k$dwt_diff <- car::durbinWatsonTest(lm(na.omit(cci$diff)~1), max.lag=3)
+  k$dwt_diff <- car::durbinWatsonTest(lm(na.omit(cci$diff)~1), max.lag=4)
   #second difference
   k$acf_diff_2  <- acf(xts$diff_2, lag.max = 10, plot = F)
   k$pacf_diff_2 <- pacf(xts$diff_2, lag.max = 10, plot = F)
-  k$dwt_diff_2 <- car::durbinWatsonTest(lm(na.omit(cci$diff_2)~1), max.lag=3)
-  # # log values
-  # k$acf_log <- acf(xts$log, lag.max = 10, plot = F)
-  # k$pacf_log <- pacf(xts$log, lag.max = 10, plot = F)
-  # k$dwt_log <- car::durbinWatsonTest(lm(na.omit(cci$log_val)~1), max.lag=4)
-  # #first difference log values
-  # k$acf_log_diff <- acf(xts$log_diff, lag.max = 10, plot = F)
-  # k$pacf_log_diff <- pacf(xts$log_diff, lag.max = 10, plot = F)
-  # k$dwt_log_diff <- car::durbinWatsonTest(lm(na.omit(cci$log_diff)~1), max.lag=4)
+  k$dwt_diff_2 <- car::durbinWatsonTest(lm(na.omit(cci$diff_2)~1), max.lag=4)
 
+
+  #evaluating model fit
+  k$mdl_1 <- list(
+    formula = value ~ 1,
+    kpi = broom::glance(lm(value ~ 1, data = na.omit(cci)))
+  )
+
+  k$mdl_2 <- list(
+    formula = value ~ diff,
+    kpi = broom::glance(lm(value ~ diff, data = na.omit(cci)))
+  )
+
+  k$mdl_3 <- list(
+    formula = value ~ diff + diff_2,
+    kpi = broom::glance(lm(value ~ diff + diff_2, data = na.omit(cci)))
+  )
 
 
   return(k)

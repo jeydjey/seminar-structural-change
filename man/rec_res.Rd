@@ -4,7 +4,7 @@
 \alias{rec_res}
 \title{calculate the squared recurive residual in a segment}
 \usage{
-rec_res(formula, from, to, data)
+rec_res(formula, from, to, data, h)
 }
 \arguments{
 \item{formula}{y~x formula object}

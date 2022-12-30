@@ -42,18 +42,6 @@ plots <- function(cci = cci()) {
     ggplot2::ylab("Index Second Difference") +
     plot_theme("date")
 
-  p$log_ts <- ggplot2::ggplot(cci, ggplot2::aes(x=time_period, y=log_val)) +
-    ggplot2::geom_line( color="orange", linewidth = 1) +
-    ggplot2::xlab("Index Year") +
-    ggplot2::ylab("Index Logarithm") +
-    plot_theme("date")
-
-  p$log_diff_ts <- ggplot2::ggplot(na.omit(dplyr::select(cci, time_period, log_diff)), ggplot2::aes(x=time_period, y=log_diff)) +
-    ggplot2::geom_line(color="orange", linewidth = 1) +
-    ggplot2::xlab("Index Year") +
-    ggplot2::ylab("Index Logarithm Frist Difference") +
-    plot_theme("date")
-
   p$annual_ts <- ggplot2::ggplot(cci, ggplot2::aes(x=time_period, y=annual_growth)) +
     ggplot2::geom_line( color="orange", linewidth = 1) +
     ggplot2::xlab("Index Year") +
@@ -85,13 +73,49 @@ plot_breaks <- function(data, segments, value = rlang::sym("value")) {
     dplyr::mutate(row_number = dplyr::row_number()) %>%
     dplyr::left_join(segments, by = character()) %>%
     dplyr::filter(from <= row_number, to >= row_number) %>%
-    dplyr::mutate(id = as.character(id))
+    dplyr::mutate(Segment = as.character(id))
 
-  ggplot2::ggplot(p, ggplot2::aes(x=time_period, y=!!val, color = id)) +
+  ggplot2::ggplot(p, ggplot2::aes(x=time_period, y=!!val, color = Segment)) +
     ggplot2::geom_line(linewidth = 1) +
     ggplot2::xlab("Index Year") +
     ggplot2::ylab("Index Value") +
+    ggplot2::scale_color_brewer(palette = "Set1") +
     plot_theme("date") +
     ggplot2::geom_smooth(method = "lm", se = FALSE, linetype = "dotted")
+
+}
+
+#' annotate the plot
+#' @param label label
+#' @param x,y pos of data
+#' @param xpos,ypos pos of label
+#' @export
+plot_annotate <- function(label, x, y, xpos, ypos, hjust) {
+
+  curve <- dplyr::case_when(
+    hjust == "left" & ypos >= y ~ .3,
+    hjust == "right" & ypos >= y ~ -.3,
+    hjust == "left" & ypos < y ~ -.3,
+    hjust == "right" & ypos < y ~ .3
+  )
+
+  list(
+    ggplot2::annotate(
+      geom = "curve", x = xpos, y = ypos, xend = x, yend = y,
+      curvature = curve, arrow = ggplot2::arrow(length = ggplot2::unit(2, "mm"))),
+    ggplot2::annotate(geom = "text", x = xpos+ ifelse(hjust == "left", 0.1, -0.1), y = ypos, label = label, hjust = hjust)
+  )
+}
+
+#' draw confidence interval
+#' @param x lower and upper bound of x
+#' @param y y position
+#' @export
+plot_confidence <- function(x, y) {
+
+  list(
+    ggplot2::geom_errorbar(data = NULL, ggplot2::aes(y = y, xmin = x[1], xmax = x[2]), colour = "red",
+                           show.legend = FALSE, inherit.aes = FALSE)
+  )
 
 }

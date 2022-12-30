@@ -15,20 +15,62 @@ valid_segm <- function(from, to, length, n_breaks, min_length) {
 }
 
 
+#' calculate OLS
+#'
+#' @param y matrix of response variable
+#' @param x matrix of regressors
+ols <- function(y, x) {
+
+  matrix(solve(t(x) %*% x) %*% t(x) %*% y)
+
+}
+
+
 #' calculate the squared recurive residual in a segment
 #' @param formula y~x formula object
 #' @param from from of segment
 #' @param to to of segment
 #' @param data dataframe of observations
 #' @export
-rec_res <- function(formula, from, to, data) {
+rec_res <- function(formula, from, to, data, h) {
 
-  model <- lm(formula, data = data[from:to,])
+  y <- matrix(model.response(model.frame(formula, data = data)))
+  mm <- model.matrix(formula, data = data)
+  z <- matrix(mm, ncol = dim(mm)[2], byrow = F)
 
-  list(
-    to = from:to,
-    res_sq = c(0, strucchange::recresid(model)^2)
+  res <- matrix(0, nrow = nrow(data), ncol = 1)
+
+  y_temp <- y[from:(from+h-1),,drop = FALSE]
+  z_temp <- z[from:(from+h-1),,drop = FALSE]
+  coef <- ols(y_temp, z_temp)
+
+  inv <- solve(t(z_temp) %*% z_temp)
+
+  r <- y_temp - z_temp %*% coef
+
+  res[from+h-1,1] <- t(r) %*% r
+
+  nfrom <- from+h
+  if(nfrom<=to) {
+    for(i in nfrom:to) {
+
+      r <- drop(y[i,1] - z[i,] %*% coef)
+      invz <- inv %*% matrix(t(z[i,]))
+      f <- drop(1 + z[i,,drop=FALSE] %*% invz)
+      coef <- coef + (invz * r) / f
+      inv <- inv - (invz %*% t(invz)) / f
+
+      res[i,1] <- res[i-1,1] + r*r/f
+
+    }
+  }
+  return(
+    list(
+      to = from:to,
+      res_sq = res[from:to, 1]
+    )
   )
+
 }
 
 
@@ -52,7 +94,7 @@ ssr <- function(formula, data, trim = 0.1) {
     ssr = mapply(valid_segm, row(ssr_mtx), col(ssr_mtx), nrow(data), 0, min_length)
   )
 
-  # calculate residuals necessary for sum squared residuals, avoiding recursive calculation
+  # calculate residuals necessary for sum squared residuals
   dt <- df %>%
     dplyr::filter(ssr) %>%
     dplyr::group_by(from) %>%
@@ -61,25 +103,19 @@ ssr <- function(formula, data, trim = 0.1) {
     data.table::as.data.table()
 
   dt <- dt[,
-           rec_res(formula, from, to, data),
+           rec_res(formula, from, to, data, min_length),
            by = c("from")
   ]
 
   # SSR for from to to sequence
   residuals <- dt %>%
-    tibble::as_tibble() %>%
-    dplyr::group_by(from) %>%
-    dplyr::mutate(
-      ssr_val = cumsum(res_sq)
-    ) %>%
-    dplyr::ungroup()
+    tibble::as_tibble()
 
   # join SSR with valid segments
   ssr_df <- df %>%
     dplyr::filter(ssr) %>%
     dplyr::left_join(
-      residuals %>%
-        dplyr::select(from, to, ssr_val),
+      residuals,
       by = c("from", "to")
     )
 
@@ -90,7 +126,7 @@ ssr <- function(formula, data, trim = 0.1) {
     )
 
   return(ssr_df %>%
-    dplyr::select(to, to_from, ssr = ssr_val)
+    dplyr::select(to, to_from, ssr = res_sq)
   )
 
 }
@@ -231,3 +267,6 @@ lwz <- function(formula, data, b, ssr) {
   )
 
 }
+
+
+
