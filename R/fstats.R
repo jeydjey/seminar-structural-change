@@ -1,20 +1,12 @@
 
 delta_coef <- function(formula, data, from, to) {
+  #get coefficient for a segment
   lm(formula, data = data[from:to,])$coeff
 }
 
-hac <- function(zb, u, prewhite = 1) {
-
-  r <- dim(zb)[1]
-  s <- dim(zb)[2]
-
-  b = matrix(0, nrow = s, ncol = 1)
-  mb = matrix(0, nrow = s, ncol = d)
-  hac
-
-}
 
 vcovs <- function(formula, data, from, to, autocorrelation = FALSE) {
+  #variance covariance matrix
 
   z <- model.matrix(formula, data)
   x <- model.response(model.frame(formula, data = data))
@@ -70,7 +62,6 @@ vcovs <- function(formula, data, from, to, autocorrelation = FALSE) {
     #serial correlation, different distributions for data and errors
     deltat <- diag(c(diff(from), nrow(data)-sum(diff(from))))
     hac <- purrr::map2(from, to, ~sandwich::kernHAC(lm(formula, data[.x:.y,]), prewhite = (.y-.x)>3))
-    #return(deltat %*% solve(t(zb) %*% zb) %*% hac %*% solve(t(zb) %*% zb))
     mhac <- matrix(0, nrow = dim(z)[2]*length(from), ncol = dim(z)[2]*length(from))
     mi <- seq(1, dim(z)[2]*length(from), dim(z)[2])
     for(i in 1:length(from)) {
@@ -84,7 +75,6 @@ vcovs <- function(formula, data, from, to, autocorrelation = FALSE) {
     #serial correlation, same distribution for the errors
     hac <- sandwich::kernHAC(lm(formula, data))
     l_hat <- diag(c(diff(from), nrow(data)-sum(diff(from))))/nrow(data)
-    #return(nrow(data) * solve(t(zb) %*% zb) %*% (l_hat %x% hac) %*% solve(t(zb) %*% zb))
     return(l_hat %x% hac)
   }
 
@@ -94,20 +84,20 @@ vcovs <- function(formula, data, from, to, autocorrelation = FALSE) {
 }
 
 fcrit <- function(conf, trim, q, k) {
-
+  #critical f value
   dplyr::pull(dplyr::filter(readRDS(system.file("extdata", "crit_supf.rda", package = "seminar.bp.strucchange", mustWork = T)),
                 conf == !!conf, trim == !!trim, q == !!q, k == !!k), crit)
 
 }
 
 dcrit <- function(conf, trim, q, dmax = c("udmax", "wdmax")) {
-
+  #critical WDmax and UDmax value
   dplyr::pull(dplyr::filter(readRDS(system.file("extdata", "crit_dmax.rda", package = "seminar.bp.strucchange", mustWork = T)),
                             conf == !!conf, trim == !!trim, q == !!q, dmax == !!dmax), crit)
 }
 
 lcrit <- function(conf, trim, q, l) {
-
+  #critical l+1|l value
   dplyr::pull(dplyr::filter(readRDS(system.file("extdata", "crit_seq.rda", package = "seminar.bp.strucchange", mustWork = T)),
                             conf == !!conf, trim == !!trim, q == !!q, l == !!l), crit)
 
@@ -129,8 +119,10 @@ fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1, autocorr
 
   obs <- nrow(data)
 
+  #global minimum result for breaks number of breaks
   ssr_result <- min_ssr(breaks, ssr, init = min(ssr$to_from))
 
+  #if no break is requested
   if(ssr_result$breaks == 0) {
     return(
       list(
@@ -143,9 +135,11 @@ fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1, autocorr
     )
   }
 
+  #calculate coefs for segments
   deltas <- unlist(purrr::map2(ssr_result$from, ssr_result$to, ~delta_coef(formula, data, .x, .y)))
   mdelta <- matrix(deltas)
 
+  #R matrix
   mr <- matrix(0, breaks, breaks+1)
   for(i in 1:breaks) {
     mr[i,i] <- -1
@@ -153,11 +147,15 @@ fstats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1, autocorr
   }
   mr <- mr %x% diag(q)
 
+  #Variance covariance matrix
   mvcov <- vcovs(formula, data, ssr_result$from, ssr_result$to, autocorrelation = autocorrelation)
 
+  #F statistic
   f <- ((obs-(breaks+1)*q)/(breaks*q*obs)) %*% t(mdelta) %*% t(mr) %*% solve(mr %*% mvcov %*% t(mr)) %*% mr %*% mdelta
 
+  #Critical value
   crit <- fcrit(conf = conf, trim = trim, q = q, k = breaks)
+
 
   list(
     fstat = f[1,1],
@@ -187,16 +185,20 @@ dmax_stats <- function(formula, data, breaks, ssr, conf = 0.95, trim = 0.1, auto
   z <- model.matrix(formula, data = data)
   q <- ncol(z)
 
+  #calculate fstats for 1:breaks breaks
   fstat <- dplyr::bind_rows(purrr::map(1:breaks, ~fstats(formula, data, .x, ssr, autocorrelation = autocorrelation) %$%
                                tibble::tibble(fstat = fstat, crit = crit)))
 
+  #UD max
   ud <- max(fstat$fstat)
 
+  #WD max
   wd <- fstat %>%
     dplyr::mutate(fstat = fstat * dplyr::first(crit)/crit) %>%
     dplyr::pull(fstat) %>%
     max()
 
+  #Crit values
   ud_crit <- dcrit(conf = conf, trim = trim, q = q, dmax = "udmax")
   wd_crit <- dcrit(conf = conf, trim = trim, q = q, dmax = "wdmax")
 
@@ -226,8 +228,10 @@ lstats <- function(formula, data, l, ssr, conf = 0.95, trim = 0.1, autocorrelati
   z <- model.matrix(formula, data = data)
   q <- ncol(z)
 
+  #get global minimum ssr result for l breaks
   ssr_result <- min_ssr(l, ssr)
 
+  # tests each segment for an additional break
   fstat <- dplyr::bind_rows(
     purrr::map2(ssr_result$from, ssr_result$to, function(.x, .y) {
 
@@ -242,8 +246,10 @@ lstats <- function(formula, data, l, ssr, conf = 0.95, trim = 0.1, autocorrelati
     })
   )
 
+  #max f stat
   fstat <- max(fstat$fstat)
 
+  #critical value
   crit <- lcrit(conf = conf, trim = trim, q = q, l = l)
 
   list(
@@ -271,10 +277,13 @@ seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1, 
   z <- model.matrix(formula, data = data)
   q <- ncol(z)
 
+  #global minimum without a break
   result <- min_ssr(0, ssr)
 
+  #looping up to m breaks
   for(i in 1:m) {
 
+    #find max fstat to insert new segment
     fstat <- purrr::map(1:length(result$from), function(.x) {
 
         .y <- list(
@@ -302,20 +311,22 @@ seq_test <- function(formula, data, m, ssr, conf = 0.95, trim = 0.1, skip = -1, 
       }) %>% dplyr::bind_rows() %>%
       dplyr::slice_max(fstat)
 
+    #check if !significance and return result unless skipping
     if(fstat$fstat[1] < lcrit(conf, trim, q, i-1) && !(i-1 <= skip))
       return(result)
 
-      old_id <- fstat$id[1]
-      pos <- which(result$id==old_id)
+    #insert break into segment
+    old_id <- fstat$id[1]
+    pos <- which(result$id==old_id)
 
-      result$breaks <- result$breaks+1
-      result$from <- c(result$from[-pos], fstat$breaks_from)
-      o <- order(result$from)
-      result$to <- c(result$to[-pos], fstat$breaks_to)[o]
-      result$ssr <- c(result$ssr[-pos], fstat$ssr)[o]
-      result$from <- result$from[o]
-      result$id <- seq_len(result$breaks+1)
-      result$global_ssr <- sum(result$ssr)
+    result$breaks <- result$breaks+1
+    result$from <- c(result$from[-pos], fstat$breaks_from)
+    o <- order(result$from)
+    result$to <- c(result$to[-pos], fstat$breaks_to)[o]
+    result$ssr <- c(result$ssr[-pos], fstat$ssr)[o]
+    result$from <- result$from[o]
+    result$id <- seq_len(result$breaks+1)
+    result$global_ssr <- sum(result$ssr)
 
   }
 
@@ -338,6 +349,7 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
   z <- model.matrix(formula, data = data)
   q <- ncol(z)
 
+  #break positions
   breakpos <- from[-1] - 1
 
   zb <- zbar(z, breakpos)
@@ -347,10 +359,12 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
 
   rb <- zbar(residuals, breakpos)
 
+  #checking data distribution across segments
   data_dist_eq <- all(unlist(purrr::map(seq_len(length(from)-1), ~ks.test(y[from[.x]:to[.x]], y[from[.x+1]:to[.x+1]])$p.value))>=0.05)
   #checking error distribution across segments
   error_dist_eq <- all(unlist(purrr::map(seq_len(length(from)-1), ~ks.test(residuals(lm(formula, data[from[.x]:to[.x],])),
                                                                            residuals(lm(formula, data[from[.x+1]:to[.x+1],])))$p.value))>=0.05)
+  #checking regressor distribution across segments
   regressor_dist_eq <- all(unlist(
     lapply(1:q, function(a, z) {
       all(unlist(purrr::map(seq_len(length(from)-1), ~ks.test(z[from[.x]:to[.x],a],
@@ -358,6 +372,7 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
     }, z = z)
   ))
 
+  #coeff matrix
   dhat_temp <- delta[(q+1):(q*length(from))] - delta[1:(q*length(from)-q)]
   dmat <- matrix(0,  ncol = q*length(breakpos), nrow = length(breakpos))
   for(i in 1:length(breakpos)) {
@@ -365,12 +380,13 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
     dmat[i,i*q] <- dhat_temp[i*q]
   }
 
+  #T of segment
   deltat <- diag(c(diff(from), nrow(data)-sum(diff(from))))
 
 
-  #Q
+  #Q Matrix
   if(regressor_dist_eq) {
-
+    #regressor distribution equal
     qmat1 <- matrix(0, nrow = q*length(breakpos), ncol = q*length(breakpos))
     for(i in 1:length(breakpos)) {
       qmat1[(i*q-1):(i*q),(i*q-1):(i*q)] <- t(z) %*% z / dim(z)[1]
@@ -381,7 +397,7 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
   }
 
   if(!regressor_dist_eq) {
-
+    #different distribution of regressors
     z_temp <- t(zb[,1:(q*length(breakpos))]) %*% zb[,1:(q*length(breakpos))]
     for(i in 1:(length(from)-1)) {
       z_temp[(i*q-1):(i*q),(i*q-1):(i*q)] <- z_temp[(i*q-1):(i*q),(i*q-1):(i*q)] / deltat[i,i]
@@ -399,7 +415,7 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
 
   #Phi
   if(!autocorrelation & error_dist_eq) {
-
+    # no autocorrealation and residuals follow same distribution
     phimat1 <- matrix(0, nrow = length(breakpos), ncol = length(breakpos))
     for(i in 1:length(breakpos)) {
       phimat1[i,i] <- t(residuals) %*% residuals / dim(z)[1]
@@ -408,7 +424,7 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
   }
 
   if(!autocorrelation & !error_dist_eq) {
-
+    # no autocorrealation and residuals follow different distribution
     r_temp <- t(rb[,1:length(breakpos)]) %*% rb[,1:length(breakpos)]
     for(i in 1:length(breakpos)) {
       r_temp[i,i] <- r_temp[i,i] / deltat[i,i]
@@ -423,7 +439,8 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
   }
 
   if(autocorrelation & !error_dist_eq) {
-
+    # autocorrealtion and residuals follow different distribution
+    # independent HAC estimator for each segment
     hac <- purrr::map2(from, to, ~sandwich::kernHAC(lm(formula, data[.x:.y,]), prewhite = (.y-.x)>3))
     omega <- matrix(0, nrow = dim(z)[2]*length(from), ncol = dim(z)[2]*length(from))
     mi <- seq(1, dim(z)[2]*length(from), dim(z)[2])
@@ -437,7 +454,8 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
   }
 
   if(autocorrelation & error_dist_eq) {
-
+    # autocorrealtion and residuals follow same distribution
+    # one HAC estimator for all segments
     hac <- sandwich::kernHAC(lm(formula, data))
     omega1 <- matrix(0, nrow = q*length(breakpos), ncol = q*length(breakpos))
     for(i in 1:length(breakpos)) {
@@ -454,9 +472,9 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
 
   }
 
-
   eta <- dmat %*% qmat2 %*% t(dmat) /  (dmat %*% qmat1 %*% t(dmat))
 
+  #critical value calculation
   crit <- crit_val(diag(eta), diag(phimat1), diag(phimat2))
 
   if(!autocorrelation) {
@@ -465,6 +483,7 @@ conf_int <- function(formula, data, from, to, autocorrelation = FALSE) {
     a = diag((dmat %*% qmat1 %*% t(dmat)) %*% (dmat %*% qmat1 %*% t(dmat)) / (dmat %*% omega1 %*% t(dmat)))
   }
 
+  #boundaries
   bound <- matrix(0, nrow = 4, ncol = length(breakpos))
 
   bound[1,] <- floor(breakpos - crit[4,]/a)
@@ -530,7 +549,6 @@ crit_val <- function(eta, phi1, phi2) {
       out <- double(4)
 
       for(i in 1:4) {
-        #initialize upper, lower bound and critical value
         upb = 2000
         lwb = -2000
         crit = 999999
@@ -539,7 +557,7 @@ crit_val <- function(eta, phi1, phi2) {
         while(abs(crit) >= 0.000001) {
           cct = cct + 1
           if (cct > 100){
-            print('the procedure to get critical values for the break dates has reached the upper bound on the number of iterations. This may happens in the procedure cvg. The resulting confidence interval for this break date is incorect')
+            print('the procedure to get critical values for the break dates has reached the upper bound on the number of iterations. This may happens in the procedure cvg. The resulting confidence interval for this break date is incorrect')
             break
           }
           else{

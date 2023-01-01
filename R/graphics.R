@@ -24,30 +24,35 @@ plots <- function(cci = cci()) {
 
   p <- list()
 
+  #full time series
   p$full_ts <- ggplot2::ggplot(cci, ggplot2::aes(x=time_period, y=value)) +
     ggplot2::geom_line( color="orange", linewidth = 1) +
     ggplot2::xlab("Index Year") +
     ggplot2::ylab("Index Value") +
     plot_theme("date")
 
+  #first difference
   p$diff_ts <- ggplot2::ggplot(na.omit(dplyr::select(cci, time_period, diff)), ggplot2::aes(x=time_period, y=diff)) +
     ggplot2::geom_line( color="orange", linewidth = 1) +
     ggplot2::xlab("Index Year") +
     ggplot2::ylab("Index First Difference") +
     plot_theme("date")
 
+  #second difference
   p$diff_2_ts <- ggplot2::ggplot(na.omit(dplyr::select(cci, time_period, diff_2)), ggplot2::aes(x=time_period, y=diff_2)) +
     ggplot2::geom_line( color="orange", linewidth = 1) +
     ggplot2::xlab("Index Year") +
     ggplot2::ylab("Index Second Difference") +
     plot_theme("date")
 
+  #annualised growth
   p$annual_ts <- ggplot2::ggplot(cci, ggplot2::aes(x=time_period, y=annual_growth)) +
     ggplot2::geom_line( color="orange", linewidth = 1) +
     ggplot2::xlab("Index Year") +
     ggplot2::ylab("Index Annual Growth") +
     plot_theme("date")
 
+  #pdf
   p$dens_ts <- ggplot2::ggplot(cci, ggplot2::aes(x = value)) +
     ggplot2::geom_density(colour = "orange", linewidth = 1) +
     ggplot2::xlab("Index Value") +
@@ -68,7 +73,7 @@ plots <- function(cci = cci()) {
 plot_breaks <- function(data, segments, value = rlang::sym("value")) {
 
   val <- rlang::enquo(value)
-
+  #join data with segments
   p <- data %>%
     dplyr::mutate(row_number = dplyr::row_number()) %>%
     dplyr::left_join(segments, by = character()) %>%

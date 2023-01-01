@@ -26,7 +26,7 @@ ols <- function(y, x) {
 }
 
 
-#' calculate the squared recurive residual in a segment
+#' calculate the squared recursive residuals in a segment
 #' @param formula y~x formula object
 #' @param from from of segment
 #' @param to to of segment
@@ -40,6 +40,7 @@ rec_res <- function(formula, from, to, data, h) {
 
   res <- matrix(0, nrow = nrow(data), ncol = 1)
 
+  #first r^2 for length h segment starting at from
   y_temp <- y[from:(from+h-1),,drop = FALSE]
   z_temp <- z[from:(from+h-1),,drop = FALSE]
   coef <- ols(y_temp, z_temp)
@@ -50,6 +51,7 @@ rec_res <- function(formula, from, to, data, h) {
 
   res[from+h-1,1] <- t(r) %*% r
 
+  #each additional residual
   nfrom <- from+h
   if(nfrom<=to) {
     for(i in nfrom:to) {
@@ -64,6 +66,7 @@ rec_res <- function(formula, from, to, data, h) {
 
     }
   }
+
   return(
     list(
       to = from:to,
@@ -84,17 +87,20 @@ rec_res <- function(formula, from, to, data, h) {
 #' @importFrom magrittr %>%
 ssr <- function(formula, data, trim = 0.1) {
 
+  #initialize matrix to be used in mapply
   ssr_mtx <- matrix(nrow = nrow(data), ncol = nrow(data))
 
+  #minimum length
   min_length <- if(trim<1) floor(trim * nrow(data)) else max(trim, floor(0.05 * nrow(data)))
 
+  #matrix in a dataframe with validity check and 0 breaks
   df <- tibble::tibble(
     from = c(row(ssr_mtx)),
     to = c(col(ssr_mtx)),
     ssr = mapply(valid_segm, row(ssr_mtx), col(ssr_mtx), nrow(data), 0, min_length)
   )
 
-  # calculate residuals necessary for sum squared residuals
+  # calculate residuals necessary for sum squared residuals only for valid segments
   dt <- df %>%
     dplyr::filter(ssr) %>%
     dplyr::group_by(from) %>%
@@ -107,7 +113,6 @@ ssr <- function(formula, data, trim = 0.1) {
            by = c("from")
   ]
 
-  # SSR for from to to sequence
   residuals <- dt %>%
     tibble::as_tibble()
 
@@ -119,7 +124,7 @@ ssr <- function(formula, data, trim = 0.1) {
       by = c("from", "to")
     )
 
-  # create permutations of possible segment combinations
+  #create join criterium
   ssr_df <- ssr_df %>%
     dplyr::mutate(
       to_from = from-1
@@ -170,6 +175,7 @@ min_ssr <- function(breaks, ssr, init = 0) {
     dplyr::slice_max(!!rlang::sym(paste0("to_", breaks+1))) %>%
     dplyr::slice_min(global_ssr)
 
+  #build segments
   segments <- dplyr::bind_cols(
     permutations %>%
       dplyr::select(dplyr::all_of(paste("to", seq_len(breaks + 1), sep = "_"))) %>%
@@ -183,6 +189,7 @@ min_ssr <- function(breaks, ssr, init = 0) {
     dplyr::mutate(from = dplyr::lag(to + 1, default = 1),
                   id = dplyr::row_number())
 
+  #if no breaks in result
   if(nrow(permutations)==0) {
 
     return(

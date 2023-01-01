@@ -46,6 +46,7 @@ kpi <- function(cci = cci()) {
 
   k <- list()
 
+  #basic description
   k$num_observations <- nrow(cci)
   k$overall_first <- dplyr::first(cci$value)
   k$overall_last <- dplyr::last(cci$value)
