@@ -2,7 +2,7 @@
 % Please edit documentation in R/ssr.R
 \name{rec_res}
 \alias{rec_res}
-\title{calculate the squared recurive residual in a segment}
+\title{calculate the squared recursive residuals in a segment}
 \usage{
 rec_res(formula, from, to, data, h)
 }
@@ -16,5 +16,5 @@ rec_res(formula, from, to, data, h)
 \item{data}{dataframe of observations}
 }
 \description{
-calculate the squared recurive residual in a segment
+calculate the squared recursive residuals in a segment
 }

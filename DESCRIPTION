@@ -1,6 +1,6 @@
 Package: seminar.bp.strucchange
 Title: Seminar Computation and Analysis of Multiple Structural Change Models
-Version: 0.4.1
+Version: 0.4.2
 Authors@R: 
     person("Joachim", "Rehberg", , "joachimdrehberg@gmail.com", role = c("aut", "cre"))
 Description: What the package does (one paragraph).

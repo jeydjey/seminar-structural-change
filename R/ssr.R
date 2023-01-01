@@ -19,6 +19,7 @@ valid_segm <- function(from, to, length, n_breaks, min_length) {
 #'
 #' @param y matrix of response variable
 #' @param x matrix of regressors
+#' @export
 ols <- function(y, x) {
 
   matrix(solve(t(x) %*% x) %*% t(x) %*% y)
