@@ -106,7 +106,7 @@ plot_breaks(data, dplyr::bind_rows(ssr_result), value = value) +
   plot_annotate(label = label[[1]]$breaks, x = label[[1]]$time_period, y = label[[1]]$value, xpos = lubridate::as_date("2006-01-01"), ypos = 98, hjust = "right") +
   plot_annotate(label = label[[2]]$breaks, x = label[[2]]$time_period, y = label[[2]]$value, xpos = lubridate::as_date("2014-01-01"), ypos = 108, hjust = "right") +
   plot_annotate(label = label[[3]]$breaks, x = label[[3]]$time_period, y = label[[3]]$value, xpos = lubridate::as_date("2016-01-01"), ypos = 116, hjust = "right") +
-  plot_annotate(label = paste("potential", "break 4:", glue::glue("{lubridate::year(data[81,]$time_period)}-{lubridate::quarter(data[81,]$time_period)}"), sep = " "), x = data[81,]$time_period, y = data[81,]$value, xpos = lubridate::as_date("2018-01-01"), ypos = 93, hjust = "right") +
+  #plot_annotate(label = paste("potential", "break 4:", glue::glue("{lubridate::year(data[81,]$time_period)}-{lubridate::quarter(data[81,]$time_period)}"), sep = " "), x = data[81,]$time_period, y = data[81,]$value, xpos = lubridate::as_date("2018-01-01"), ypos = 93, hjust = "right") +
   plot_confidence(break1_conf, 70) +
   plot_confidence(break2_conf, 70) +
   plot_confidence(break3_conf, 70)
